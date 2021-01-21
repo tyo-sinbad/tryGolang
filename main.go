@@ -1,102 +1,109 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"encoding/json"
-	// "log"
+	"fmt"
+	"log"
 	"net/http"
 
-	// "tryGorm/database"
-
-	// "github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
-	// "github.com/rs/cors"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"github.com/jinzhu/gorm"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type User struct {
-	gorm.Model
-	Email string
-	DriverID int
-}
-
-type Driver struct {
-	gorm.Model
-	Name    string
-	License string
-	Cars    []Car
-}
-
-type Car struct {
-	gorm.Model
-	Year      int
-	Make      string
-	ModelName string
-	DriverID  int
+type Trainer struct {
+	Name string
+	Age  int
+	City string
 }
 
 var (
-	drivers = []Driver{
-		{Name: "Jimmy Johnson", License: "ABC123"},
-		{Name: "Howard Hills", License: "XYZ789"},
-		{Name: "Craig Colbin", License: "DEF333"},
-	}
-	cars = []Car{
-		{Year: 2000, Make: "Toyota", ModelName: "Tundra", DriverID: 1},
-		{Year: 2001, Make: "Honda", ModelName: "Accord", DriverID: 1},
-		{Year: 2002, Make: "Nissan", ModelName: "Sentra", DriverID: 2},
-		{Year: 2003, Make: "Ford", ModelName: "F-150", DriverID: 3},
-	}
-	users = []User{
-		{Email: "tyo@gmail.com", DriverID: 1},
-		{Email: "ujang@gmail.com", DriverID: 2},
-		{Email: "udin@gmail.com", DriverID: 3},
+	trainers = []Trainer{
+		{Name: "Ash", Age: 10, City: "Pallet Town"},
+		{Name: "Misty", Age: 10, City: "Cerulean City"},
+		{Name: "Brock", Age: 15, City: "Pewter City"},
 	}
 )
 
 var db *gorm.DB
 var err error
 
-func main() {
-	// database.User()
-	connection()
-	// innitialMigrate()
-	handleRequest()
+func connection() (*mongo.Database, error) {
+	// // Set client options
+	// clientOptions := options.Client().ApplyURI("mongodb+srv://dipra123:blizzard@cluster0.euw4v.mongodb.net/dipra123?retryWrites=true&w=majority")
+
+	// // Connect to MongoDB
+	// client, err := mongo.Connect(context.TODO(), clientOptions)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// // Check the connection
+	// err = client.Ping(context.TODO(), nil)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Println("Connected to MongoDB!")
+
+	clientOptions := options.Client()
+	clientOptions.ApplyURI("mongodb+srv://dipra123:blizzard@cluster0.euw4v.mongodb.net/dipra123?retryWrites=true&w=majority")
+	client, err := mongo.NewClient(clientOptions)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Database("belajar_golang"), nil
 }
 
-func connection() {
-	db, err = gorm.Open("postgres", "host=ziggy.db.elephantsql.com port=5432 user=klfmmivf dbname=klfmmivf sslmode=disable password=AjmwzYbNDjW4X0hbl0dryGuECZ1acBCn")
-		if err != nil {
-			panic("failed to connect database")
-		}
-		// defer db.Close()
-}
+var ctx = context.Background()
 
 func innitialMigrate() {
 	connection()
-	defer db.Close()
-
-	db.AutoMigrate(&User{})
-	db.AutoMigrate(&Driver{})
-	db.AutoMigrate(&Car{})
-
-	for index := range drivers {
-		db.Create(&users[index])
+	db, err := connection()
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 
-	for index := range cars {
-		db.Create(&cars[index])
+	_, err = db.Collection("trainers").InsertOne(ctx, Trainer{"Ash", 10, "Pallet Town"})
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 
-	for index := range drivers {
-		db.Create(&drivers[index])
+	_, err = db.Collection("trainers").InsertOne(ctx, Trainer{"Misty", 10, "Cerulen City"})
+	if err != nil {
+		log.Fatal(err.Error())
 	}
+
+	fmt.Println("Insert success!")
+	// defer db.Close()
+
+	// db.AutoMigrate(&Trainer{})
+	// // db.AutoMigrate(&Car{})
+
+	// for index := range trainers {
+	// 	db.Create(&trainers[index])
+	// }
+
+	// // for index := range drivers {
+	// // 	db.Create(&drivers[index])
+	// // }
+	// fmt.Println("migration success")
 }
 
-func handleRequest() {
+func main() {
+
+	innitialMigrate()
+
 	port := ":8080"
 
 	r := chi.NewRouter()
@@ -105,67 +112,113 @@ func handleRequest() {
 		w.Write([]byte("welcome"))
 	})
 
-	r.Get("/cars", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/trainer", func(w http.ResponseWriter, r *http.Request) {
 		connection()
 		defer db.Close()
-		var cars []Car
-		db.Find(&cars)
-		json.NewEncoder(w).Encode(&cars)
+		var trainers []Trainer
+		db.Find(&trainers)
+		json.NewEncoder(w).Encode(&trainers)
 	})
 
-	r.Get("/cars/{id}", func(w http.ResponseWriter, r *http.Request) {
-		connection()
-		defer db.Close()
+	// Get a handle for your collection
+	// collection := client.Database("test").Collection("trainers")
 
-		params := chi.URLParam(r, "id")
-		// ctx := r.Context()
-		// key := ctx.Value("key").(string)
-		var car Car
-		db.First(&car, params)
-		json.NewEncoder(w).Encode(&car)
-		// respond to the client
-		// w.Write([]byte("hi %v, %v", params, key))
-		// fmt.Println(key)
-	})
+	// // Some dummy data to add to the Database
+	// ash := Trainer{"Ash", 10, "Pallet Town"}
+	// misty := Trainer{"Misty", 10, "Cerulean City"}
+	// brock := Trainer{"Brock", 15, "Pewter City"}
 
-	r.Get("/drivers/{id}", func(w http.ResponseWriter, r *http.Request) {
-		connection()
-		defer db.Close()
+	// // Insert a single document
+	// insertResult, err := collection.InsertOne(context.TODO(), ash)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println("Inserted a single document: ", insertResult.InsertedID)
 
-		params := chi.URLParam(r, "id")
-		var driver Driver
-		var cars []Car
-		db.First(&driver, params)
-		db.Model(&driver).Related(&cars)
-		driver.Cars = cars
-		json.NewEncoder(w).Encode(&driver)
-	})
+	// // Insert multiple documents
+	// trainers := []interface{}{misty, brock}
 
-	r.Get("/cars/{id}", func(w http.ResponseWriter, r *http.Request) {
-		connection()
-		defer db.Close()
+	// insertManyResult, err := collection.InsertMany(context.TODO(), trainers)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println("Inserted multiple documents: ", insertManyResult.InsertedIDs)
 
-		params := chi.URLParam(r, "id")
-		var car Car
-		db.First(&car, params)
-		db.Delete(&car)
+	// // Update a document
+	// filter := bson.D{{"name", "Ash"}}
 
-		var cars []Car
-		db.Find(&cars)
-		json.NewEncoder(w).Encode(&cars)
-	})
+	// update := bson.D{
+	// 	{"$inc", bson.D{
+	// 		{"age", 1},
+	// 	}},
+	// }
+
+	// updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Printf("Matched %v documents and updated %v documents.\n", updateResult.MatchedCount, updateResult.ModifiedCount)
+
+	// // Find a single document
+	// var result Trainer
+
+	// err = collection.FindOne(context.TODO(), filter).Decode(&result)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Printf("Found a single document: %+v\n", result)
+
+	// findOptions := options.Find()
+	// findOptions.SetLimit(2)
+
+	// var results []*Trainer
+
+	// // Finding multiple documents returns a cursor
+	// cur, err := collection.Find(context.TODO(), bson.D{{}}, findOptions)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// // Iterate through the cursor
+	// for cur.Next(context.TODO()) {
+	// 	var elem Trainer
+	// 	err := cur.Decode(&elem)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+
+	// 	results = append(results, &elem)
+	// }
+
+	// if err := cur.Err(); err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// // Close the cursor once finished
+	// cur.Close(context.TODO())
+
+	// fmt.Printf("Found multiple documents (array of pointers): %+v\n", results)
+
+	// // Delete all the documents in the collection
+	// deleteResult, err := collection.DeleteMany(context.TODO(), bson.D{{}})
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Printf("Deleted %v documents in the trainers collection\n", deleteResult.DeletedCount)
+
+	// // Close the connection once no longer needed
+	// err = client.Disconnect(context.TODO())
+
+	// if err != nil {
+	// 	log.Fatal(err)
+	// } else {
+	// 	fmt.Println("Connection to MongoDB closed.")
+	// }
 
 	fmt.Println("running in port" + port)
 
 	http.ListenAndServe(port, r)
-
-	// router := mux.NewRouter()
-	// router.HandleFunc("/cars", database.GetCars).Methods("GET")
-	// router.HandleFunc("/cars/{id}", database.GetCar).Methods("GET")
-	// router.HandleFunc("/drivers/{id}", database.GetDriver).Methods("GET")
-	// router.HandleFunc("/cars/{id}", database.DeleteCar).Methods("DELETE")
-
-	// handler := cors.Default().Handler(router)
-	// log.Fatal(http.ListenAndServe("0.0.0.0:8080", handler))
 
 }
