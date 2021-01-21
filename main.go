@@ -17,6 +17,12 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
+type User struct {
+	gorm.Model
+	Email string
+	DriverID int
+}
+
 type Driver struct {
 	gorm.Model
 	Name    string
@@ -44,6 +50,11 @@ var (
 		{Year: 2002, Make: "Nissan", ModelName: "Sentra", DriverID: 2},
 		{Year: 2003, Make: "Ford", ModelName: "F-150", DriverID: 3},
 	}
+	users = []User{
+		{Email: "tyo@gmail.com", DriverID: 1},
+		{Email: "ujang@gmail.com", DriverID: 2},
+		{Email: "udin@gmail.com", DriverID: 3},
+	}
 )
 
 var db *gorm.DB
@@ -68,8 +79,13 @@ func innitialMigrate() {
 	connection()
 	defer db.Close()
 
+	db.AutoMigrate(&User{})
 	db.AutoMigrate(&Driver{})
 	db.AutoMigrate(&Car{})
+
+	for index := range drivers {
+		db.Create(&users[index])
+	}
 
 	for index := range cars {
 		db.Create(&cars[index])
