@@ -2,107 +2,78 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/jinzhu/gorm"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type Trainer struct {
-	Name string
-	Age  int
-	City string
-}
-
-var (
-	trainers = []Trainer{
-		{Name: "Ash", Age: 10, City: "Pallet Town"},
-		{Name: "Misty", Age: 10, City: "Cerulean City"},
-		{Name: "Brock", Age: 15, City: "Pewter City"},
-	}
-)
-
-var db *gorm.DB
-var err error
-
-func connection() (*mongo.Database, error) {
-	// // Set client options
-	// clientOptions := options.Client().ApplyURI("mongodb+srv://dipra123:blizzard@cluster0.euw4v.mongodb.net/dipra123?retryWrites=true&w=majority")
-
-	// // Connect to MongoDB
-	// client, err := mongo.Connect(context.TODO(), clientOptions)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// // Check the connection
-	// err = client.Ping(context.TODO(), nil)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// fmt.Println("Connected to MongoDB!")
-
-	clientOptions := options.Client()
-	clientOptions.ApplyURI("mongodb+srv://dipra123:blizzard@cluster0.euw4v.mongodb.net/dipra123?retryWrites=true&w=majority")
-	client, err := mongo.NewClient(clientOptions)
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = client.Connect(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return client.Database("belajar_golang"), nil
-}
-
 var ctx = context.Background()
 
-func innitialMigrate() {
-	connection()
-	db, err := connection()
+type trainer struct {
+	Name string `bson:"Name"`
+	Age  int    `bson:"Grade"`
+	City string `bson:"City"`
+}
+
+// func connect() (*mongo.Database, error) {
+// 	clientOptions := options.Client()
+// 	clientOptions.ApplyURI("mongodb+srv://dipra123:blizzard@cluster0.euw4v.mongodb.net/dipra123?retryWrites=true&w=majority")
+// 	client, err := mongo.NewClient(clientOptions)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	err = client.Connect(ctx)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return client.Database("belajar_golang"), nil
+// }
+
+func connection() (*mongo.Database, error) {
+	// Set client options
+	clientOptions := options.Client().ApplyURI("mongodb+srv://dipra123:blizzard@cluster0.euw4v.mongodb.net/dipra123?retryWrites=true&w=majority")
+
+	// Connect to MongoDB
+	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
 	}
 
-	_, err = db.Collection("trainers").InsertOne(ctx, Trainer{"Ash", 10, "Pallet Town"})
+	// Check the connection
+	err = client.Ping(context.TODO(), nil)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
 	}
 
-	_, err = db.Collection("trainers").InsertOne(ctx, Trainer{"Misty", 10, "Cerulen City"})
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	fmt.Println("Connected to MongoDB!")
+	return client.Database("dipra123"), nil
 
-	fmt.Println("Insert success!")
-	// defer db.Close()
+	// clientOptions := options.Client()
+	// clientOptions.ApplyURI("mongodb+srv://dipra123:blizzard@cluster0.euw4v.mongodb.net/dipra123?retryWrites=true&w=majority")
+	// client, err := mongo.NewClient(clientOptions)
 
-	// db.AutoMigrate(&Trainer{})
-	// // db.AutoMigrate(&Car{})
-
-	// for index := range trainers {
-	// 	db.Create(&trainers[index])
+	// if err != nil {
+	// 	return nil, err
 	// }
 
-	// // for index := range drivers {
-	// // 	db.Create(&drivers[index])
-	// // }
-	// fmt.Println("migration success")
+	// err = client.Connect(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// return client.Database("belajar_golang"), nil
 }
 
 func main() {
 
-	innitialMigrate()
+	connection()
 
 	port := ":8080"
 
@@ -112,13 +83,64 @@ func main() {
 		w.Write([]byte("welcome"))
 	})
 
-	r.Get("/trainer", func(w http.ResponseWriter, r *http.Request) {
-		connection()
-		defer db.Close()
-		var trainers []Trainer
-		db.Find(&trainers)
-		json.NewEncoder(w).Encode(&trainers)
-	})
+	// r.Get("/trainer", func(w http.ResponseWriter, r *http.Request) {
+	// 	db, err := connect()
+	// 	if err != nil {
+	// 		log.Fatal(err.Error())
+	// 	}
+	// 	_, err = db.Collection("trainer").InsertOne(ctx, trainer{"Ash", 10, "Pallet Town"})
+	// 	if err != nil {
+	// 		log.Fatal(err.Error())
+	// 		w.Write([]byte(err.Error()))
+	// 	}
+
+	// 	_, err = db.Collection("trainer").InsertOne(ctx, trainer{"Misty", 10, "Cerulen City"})
+	// 	if err != nil {
+	// 		log.Fatal(err.Error())
+	// 		w.Write([]byte(err.Error()))
+	// 	}
+
+	// 	// fmt.Println(db)
+	// 	// fmt.Println(err)
+	// 	w.Write([]byte("Insert success"))
+	// })
+
+	// r.Get("/trainers", func(w http.ResponseWriter, r *http.Request) {
+	// 	db, err := connect()
+	// 	if err != nil {
+	// 		log.Fatal(err.Error())
+	// 	}
+
+	// 	csr, err := db.Collection("trainer").Find(ctx, bson.M{"name": "Ash"})
+	// 	if err != nil {
+	// 		log.Fatal(err.Error())
+	// 	}
+	// 	defer csr.Close(ctx)
+
+	// 	result := make([]trainer, 0)
+	// 	for csr.Next(ctx) {
+	// 		var row trainer
+	// 		err := csr.Decode(&row)
+	// 		if err != nil {
+	// 			log.Fatal(err.Error())
+	// 		}
+
+	// 		result = append(result, row)
+	// 	}
+
+	// 	if len(result) > 0 {
+	// 		fmt.Println("Name  :", result[0].Name)
+	// 		fmt.Println("Age :", result[0].Age)
+	// 	}
+	// })
+
+	// r.Get("/trainer", func(w http.ResponseWriter, r *http.Request) {
+	// 	connection()
+	// 	defer db.Close()
+	// 	var trainers []Trainer
+	// 	db.Find(&trainers)
+	// 	json.NewEncoder(w).Encode(&trainers)
+	// })
 
 	// Get a handle for your collection
 	// collection := client.Database("test").Collection("trainers")
